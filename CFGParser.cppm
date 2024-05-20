@@ -11,15 +11,17 @@ import <fstream>;
 import <array>;
 import <concepts>;
 
+template <typename T>
+concept number_types = std::is_integral_v<T> || std::is_floating_point_v<T>;
 
-export template<std::integral T>
+export template<number_types T>
 struct vec2 final
 {
 	T x{ static_cast<T>(0) };
 	T y{ static_cast<T>(0) };
 };
 
-export template<std::integral T>
+export template<number_types T>
 struct vec3 final
 {
 	T x{ static_cast<T>(0) };
@@ -27,7 +29,7 @@ struct vec3 final
 	T z{ static_cast<T>(0) };
 };
 
-export template<std::integral T>
+export template<number_types T>
 struct vec4 final
 {
 	T x{ static_cast<T>(0) };
@@ -993,49 +995,22 @@ public:
 	*/
 	const SectionDataHash& getSectionData() const { return _section_data; }
 
-	template<std::integral T>
+	template<number_types T>
 	vec2<T> getVec2(const std::string& section, const std::string& key, const vec2<T>& default_value = {}) const
 	{
-		if (const auto& vec{ this->getArray<T>(section, key) }; !vec.empty())
-		{
-			return { vec[0u], vec[1u] };
-		}
-		else
-		{
-			_msg_functor("Cannot find \"" + section + ':' + key + "\". Default value will be return...");
-
-			return default_value;
-		}
+		return parseVec<T, vec2<T>>(section, key, default_value, [](const auto& v) -> vec2<T> { return { v[0], v[1] }; });
 	}
 
-	template<std::integral T>
+	template<number_types T>
 	vec3<T> getVec3(const std::string& section, const std::string& key, const vec3<T>& default_value = {}) const
 	{
-		if (const auto& vec{ this->getArray<T>(section, key) }; !vec.empty())
-		{
-			return { vec[0u], vec[1u], vec[2u] };
-		}
-		else
-		{
-			_msg_functor("Cannot find \"" + section + ':' + key + "\". Default value will be return...");
-
-			return default_value;
-		}
+		return parseVec<T, vec3<T>>(section, key, default_value, [](const auto& v) -> vec3<T> { return { v[0], v[1], v[2] }; });
 	}
 
-	template<std::integral T>
+	template<number_types T>
 	vec4<T> getVec4(const std::string& section, const std::string& key, const vec4<T>& default_value = {}) const
 	{
-		if (const auto& vec{ this->getArray<T>(section, key) }; !vec.empty())
-		{
-			return { vec[0u], vec[1u], vec[2u], vec[3u] };
-		}
-		else
-		{
-			_msg_functor("Cannot find \"" + section + ':' + key + "\". Default value will be return...");
-
-			return default_value;
-		}
+		return parseVec<T, vec4<T>>(section, key, default_value, [](const auto& v) -> vec4<T> { return { v[0], v[1], v[2], v[3] }; });
 	}
 
 private:
@@ -1116,10 +1091,28 @@ private:
 		if (!_msg_functor)
 		{
 			_msg_functor = std::move([](const std::string& msg)
-				{
-					std::cout << "CFGParser: " << msg << std::endl;
-				});
+			{
+				std::cout << "CFGParser: " << msg << std::endl;
+			});
+		}
+	}
+
+	template<typename T, typename R>
+	inline R parseVec(const std::string& section, const std::string& key, const vec2<T>& default_value, std::function<R(const std::vector<T>&)>&& return_func) const
+	{
+		if (const auto& vec{ this->getArray<T>(section, key) }; !vec.empty())
+		{
+			return return_func(vec);
+		}
+		else
+		{
+			_msg_functor("Cannot find \"" + section + ':' + key + "\". Default value will be return...");
+
+			return default_value;
 		}
 	}
 
 };
+
+std::function<void(const std::string&)> CFGParser::_msg_functor;
+
